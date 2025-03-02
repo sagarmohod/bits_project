@@ -1,0 +1,4 @@
+fenv/
+app/data/
+app/chroma_langchain_db/
+app/_pycache__/

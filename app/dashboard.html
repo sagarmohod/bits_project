@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Report Analyzer</title>
+    <!-- You can use Flask's url_for to link stylesheets -->
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #89d5ea;
+            color: white;
+            padding-top: 20px;
+            position: fixed;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-radius: 0 25px 25px 0;
+            transition: transform 0.3s ease-in-out;
+            left: 0;
+            z-index: 100;
+        }
+        
+        .close-btn {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .open-btn {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            background: #89d5ea;
+            border: none;
+            color: white;
+            font-size: 20px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+            z-index: 90;
+        }
+        
+        .sidebar a {
+            text-decoration: none;
+            color: white;
+            padding: 12px;
+            width: 90%;
+            text-align: center;
+            display: block;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.3s;
+        }
+        
+        .sidebar a:hover, .sidebar a.active {
+            background-color: #1565c0;
+        }
+        
+        .main-content {
+            margin-left: 260px;
+            flex-grow: 1;
+            padding: 20px;
+            transition: margin-left 0.3s ease-in-out;
+            overflow-y: auto;
+        }
+        
+        .dashboard {
+            text-align: center;
+        }
+        
+        .doc-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .generate-btn {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .doc-category {
+            width: 250px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            border: 1px solid #ccc;
+            transition: background 0.3s ease, transform 0.2s ease;
+            margin-bottom: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .doc-category:hover {
+            background-color: #d0e8ff;
+        }
+        
+        .category-container {
+            display: flex;
+            flex-direction: column;
+            width: 282px;
+            margin: 10px 5px;
+        }
+        
+        .doc-table-section {
+            width: 100%;
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .doc-table-section h2 {
+            text-align: left;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+        }
+        
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .doc-table th {
+            background-color: #007bff;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        
+        .doc-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .doc-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .doc-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .execute-btn {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .execute-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .close-table-btn {
+            padding: 8px 15px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            float: right;
+            transition: background-color 0.3s;
+        }
+        
+        .close-table-btn:hover {
+            background-color: #5a6268;
+        }
+        
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+        
+        .main-content.full-width {
+            margin-left: 0;
+        }
+        
+        .sidebar.hidden + .open-btn {
+            display: block;
+        }
+
+        /* Loading indicator styles */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error message styles */
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- 
+    Note for Flask integration: 
+    - Use Flask's url_for() for links and static files
+    - Replace hardcoded URLs with dynamic routes
+    -->
+    <div class="sidebar" id="sidebar">
+        <button class="close-btn" onclick="toggleSidebar()">✖</button>
+        <h2>Menu</h2>
+        <!-- For Flask, update these links to use url_for -->
+        <a href="dashboard.html" id="dashboardBtn">Dashboard</a>
+        <a href="chat.html" id="chatBtn">Chat</a>
+    </div>
+
+    <button class="open-btn" id="openSidebarBtn" onclick="toggleSidebar()">☰</button>
+
+    <div class="main-content" id="mainContent">
+        <div class="dashboard">
+            <h1>Dashboard</h1>
+            <!-- Error message container -->
+            <div id="errorContainer" class="error-message"></div>
+            
+            <div class="doc-container">
+                <div class="category-container">
+                    <div class="doc-category" onclick="showTableView('bank-statement')">Bank Statements</div>
+                </div>
+                
+                <div class="category-container">
+                    <div class="doc-category" onclick="showTableView('loan-statement')">Loan Statements</div>
+                </div>
+                
+                <div class="category-container">
+                    <div class="doc-category" onclick="showTableView('mutual-fund')">Mutual Fund Documents</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading indicator -->
+        <div id="loadingIndicator" class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading data...</p>
+        </div>
+        
+        <!-- Inline Table Views (below the dashboard) -->
+        <div id="bankStatementTable" class="doc-table-section">
+            <h2>Bank Statements</h2>
+            <table class="doc-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Pages</th>
+                        <th>Size</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="bank-statement-table-body">
+                    <!-- Table rows will be added dynamically -->
+                </tbody>
+            </table>
+            <button class="close-table-btn" onclick="closeTableView('bank-statement')">Close</button>
+        </div>
+        
+        <div id="loanStatementTable" class="doc-table-section">
+            <h2>Loan Statements</h2>
+            <table class="doc-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Pages</th>
+                        <th>Size</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="loan-statement-table-body">
+                    <!-- Table rows will be added dynamically -->
+                </tbody>
+            </table>
+            <button class="close-table-btn" onclick="closeTableView('loan-statement')">Close</button>
+        </div>
+        
+        <div id="mutualFundTable" class="doc-table-section">
+            <h2>Mutual Fund Documents</h2>
+            <table class="doc-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Pages</th>
+                        <th>Size</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="mutual-fund-table-body">
+                    <!-- Table rows will be added dynamically -->
+                </tbody>
+            </table>
+            <button class="close-table-btn" onclick="closeTableView('mutual-fund')">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Constants for API endpoints - Update these with actual Flask endpoints
+        const API_ENDPOINTS = {
+            // Fetch document lists for each category
+            'bank-statement': '/api/documents/bank-statements',
+            'loan-statement': '/api/documents/loan-statements',
+            'mutual-fund': '/api/documents/mutual-funds',
+            // Generate report endpoint
+            'generate-report': '/api/generate-report'
+        };
+
+        /**
+         * Document ready event listener
+         * Sets up the page on initial load
+         */
+        document.addEventListener("DOMContentLoaded", function () {
+            // Highlight active navigation item based on current page
+            highlightActiveNavItem();
+            
+            // Restore state from URL parameters if available
+            restoreStateFromUrl();
+        });
+        
+        /**
+         * Highlights the active navigation menu item based on current page
+         * For Flask integration: This should match your route structure
+         */
+        function highlightActiveNavItem() {
+            // The path might be different in Flask app - adjust as needed
+            const currentPath = window.location.pathname;
+            
+            if (currentPath.includes('/dashboard') || currentPath === '/') {
+                document.getElementById("dashboardBtn").classList.add("active");
+            } else if (currentPath.includes('/chat')) {
+                document.getElementById("chatBtn").classList.add("active");
+            }
+        }
+        
+        /**
+         * Shows document table for the selected category
+         * Fetches data from the server using API endpoints
+         * @param {string} category - The document category to display
+         */
+        function showTableView(category) {
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            
+            // Hide all table sections first
+            document.getElementById('bankStatementTable').style.display = 'none';
+            document.getElementById('loanStatementTable').style.display = 'none';
+            document.getElementById('mutualFundTable').style.display = 'none';
+            
+            // Clear any previous error messages
+            document.getElementById('errorContainer').style.display = 'none';
+            document.getElementById('errorContainer').textContent = '';
+            
+            // Fetch data from the server
+            fetchDocuments(category)
+                .then(data => {
+                    // Populate table with fetched data
+                    populateTable(category, data);
+                    
+                    // Show appropriate table section
+                    if (category === 'bank-statement') {
+                        document.getElementById('bankStatementTable').style.display = 'block';
+                    } else if (category === 'loan-statement') {
+                        document.getElementById('loanStatementTable').style.display = 'block';
+                    } else if (category === 'mutual-fund') {
+                        document.getElementById('mutualFundTable').style.display = 'block';
+                    }
+                    
+                    // Update URL with the selected category (for state persistence)
+                    updateUrlWithCategory(category);
+                    
+                    // Hide loading indicator
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    
+                    // Scroll to the table
+                    scrollToTable(category);
+                })
+                .catch(error => {
+                    // Handle errors
+                    console.error('Error fetching documents:', error);
+                    document.getElementById('errorContainer').textContent = 
+                        'Error loading documents. Please try again later.';
+                    document.getElementById('errorContainer').style.display = 'block';
+                    
+                    // Hide loading indicator
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                });
+        }
+        
+        /**
+         * Fetches documents from the server for the specified category
+         * @param {string} category - The document category to fetch
+         * @returns {Promise} - Promise that resolves with document data
+         */
+        function fetchDocuments(category) {
+            // Get the endpoint URL for this category
+            const endpoint = API_ENDPOINTS[category];
+            
+            // For development/testing - use sample data if endpoint is not available
+            if (!endpoint || window.location.hostname === 'localhost') {
+                console.log('Using sample data for development');
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve(generateSampleDocuments(getCategoryPrefix(category), 10));
+                    }, 500); // Simulate network delay
+                });
+            }
+            
+            // Real API call for production
+            return fetch(endpoint)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                });
+        }
+        
+        /**
+         * Populates the table with document data
+         * @param {string} category - The document category
+         * @param {Array} documents - Array of document objects
+         */
+        function populateTable(category, documents) {
+            let tableBody;
+            
+            // Select the appropriate table body element
+            if (category === 'bank-statement') {
+                tableBody = document.getElementById('bank-statement-table-body');
+            } else if (category === 'loan-statement') {
+                tableBody = document.getElementById('loan-statement-table-body');
+            } else if (category === 'mutual-fund') {
+                tableBody = document.getElementById('mutual-fund-table-body');
+            }
+            
+            // Clear existing content
+            tableBody.innerHTML = '';
+            
+            // Add documents to table
+            documents.forEach(doc => {
+                let row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${doc.name}</td>
+                    <td>${doc.pages}</td>
+                    <td>${doc.size}</td>
+                    <td><button class="execute-btn" 
+                        onclick="generateReport('${doc.name}', '${category}', '${doc.id || ''}')">
+                        Generate</button></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        /**
+         * Closes the table view for a category
+         * @param {string} category - The document category
+         */
+        function closeTableView(category) {
+            if (category === 'bank-statement') {
+                document.getElementById('bankStatementTable').style.display = 'none';
+            } else if (category === 'loan-statement') {
+                document.getElementById('loanStatementTable').style.display = 'none';
+            } else if (category === 'mutual-fund') {
+                document.getElementById('mutualFundTable').style.display = 'none';
+            }
+            
+            // Remove category from URL
+            removeUrlCategory();
+            
+            // Scroll back to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        /**
+         * Helper function to get category prefix for sample data generation
+         * @param {string} category - The document category
+         * @returns {string} - The prefix for document names
+         */
+        function getCategoryPrefix(category) {
+            if (category === 'bank-statement') return 'Bank';
+            if (category === 'loan-statement') return 'Loan';
+            if (category === 'mutual-fund') return 'MF';
+            return '';
+        }
+        
+        /**
+         * Generates sample documents for development/testing
+         * @param {string} prefix - Prefix for document names
+         * @param {number} count - Number of documents to generate
+         * @returns {Array} - Array of document objects
+         */
+        function generateSampleDocuments(prefix, count) {
+            const docs = [];
+            for (let i = 1; i <= count; i++) {
+                const pages = Math.floor(Math.random() * 10) + 1;
+                const size = Math.floor(Math.random() * 5) + 1;
+                docs.push({
+                    id: `doc-${prefix.toLowerCase()}-${i}`,  // Add unique ID for each document
+                    name: `${prefix}Statement${i}.pdf`,
+                    pages: pages,
+                    size: `${size}MB`
+                });
+            }
+            return docs;
+        }
+        
+        /**
+         * Initiates report generation for a document
+         * For Flask integration: This should call your Flask endpoint
+         * @param {string} docName - Document name
+         * @param {string} docType - Document type/category
+         * @param {string} docId - Document ID (optional)
+         */
+        function generateReport(docName, docType, docId) {
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            
+            // Use API or redirect to chat page with document parameters
+            if (API_ENDPOINTS['generate-report']) {
+                // API approach - call your Flask endpoint
+                fetch(API_ENDPOINTS['generate-report'], {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        docName: docName,
+                        docType: docType,
+                        docId: docId
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to generate report');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Navigate to chat page with report ID
+                    window.location.href = `{{ url_for('chat') }}?reportId=${data.reportId}`;
+                })
+                .catch(error => {
+                    console.error('Error generating report:', error);
+                    document.getElementById('errorContainer').textContent = 
+                        'Error generating report. Please try again.';
+                    document.getElementById('errorContainer').style.display = 'block';
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                });
+            } else {
+                // Fallback to direct navigation with query parameters
+                // For Flask, update this to use url_for
+                const chatUrl = "{{ url_for('chat') }}";
+                window.location.href = `${chatUrl}?docName=${encodeURIComponent(docName)}&docType=${encodeURIComponent(docType)}&docId=${encodeURIComponent(docId || '')}`;
+            }
+        }
+        
+        /**
+         * Scrolls to the appropriate table
+         * @param {string} category - The document category
+         */
+        function scrollToTable(category) {
+            const tableElement = document.getElementById(
+                category === 'bank-statement' ? 'bankStatementTable' : 
+                category === 'loan-statement' ? 'loanStatementTable' : 'mutualFundTable'
+            );
+            
+            tableElement.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        /**
+         * Toggles the sidebar visibility
+         */
+        function toggleSidebar() {
+            let sidebar = document.getElementById("sidebar");
+            let mainContent = document.getElementById("mainContent");
+            let openBtn = document.getElementById("openSidebarBtn");
+        
+            sidebar.classList.toggle("hidden");
+            mainContent.classList.toggle("full-width");
+        
+            openBtn.style.display = sidebar.classList.contains("hidden") ? "block" : "none";
+        }
+        
+        /**
+         * Updates the URL with the selected category (for bookmarking/sharing)
+         * @param {string} category - The document category
+         */
+        function updateUrlWithCategory(category) {
+            const url = new URL(window.location);
+            url.searchParams.set('category', category);
+            window.history.pushState({}, '', url);
+        }
+        
+        /**
+         * Removes category parameter from URL
+         */
+        function removeUrlCategory() {
+            const url = new URL(window.location);
+            url.searchParams.delete('category');
+            window.history.pushState({}, '', url);
+        }
+        
+        /**
+         * Restores state from URL parameters (for bookmarking/sharing)
+         */
+        function restoreStateFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const category = urlParams.get('category');
+            
+            if (category) {
+                // Slight delay to ensure DOM is fully loaded
+                setTimeout(() => {
+                    showTableView(category);
+                }, 100);
+            }
+        }
+    </script>
+</body>
+</html>
